@@ -24,6 +24,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.ListFragment;
 
+import android.os.RemoteException;
 import android.text.Html;
 import android.text.Html.ImageGetter;
 import android.text.SpannableString;
@@ -41,6 +42,11 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedList;
@@ -54,6 +60,7 @@ import de.blinkt.openvpn.activities.ConfigConverter;
 import de.blinkt.openvpn.activities.DisconnectVPN;
 import de.blinkt.openvpn.activities.FileSelect;
 import de.blinkt.openvpn.activities.VPNPreferences;
+import de.blinkt.openvpn.core.ConfigParser;
 import de.blinkt.openvpn.core.ConnectionStatus;
 import de.blinkt.openvpn.core.PasswordDialogFragment;
 import de.blinkt.openvpn.core.Preferences;
@@ -291,20 +298,95 @@ public class VPNProfileList extends ListFragment implements OnClickListener, Vpn
     }
 
     private void populateVpnList() {
-        boolean sortByLRU = Preferences.getDefaultSharedPreferences(requireActivity()).getBoolean(PREF_SORT_BY_LRU, false);
-        Collection<VpnProfile> allvpn = getPM().getProfiles();
-        TreeSet<VpnProfile> sortedset;
-        if (sortByLRU)
-            sortedset = new TreeSet<>(new VpnProfileLRUComparator());
-        else
-            sortedset = new TreeSet<>(new VpnProfileNameComparator());
 
-        sortedset.addAll(allvpn);
-        mArrayadapter.clear();
-        mArrayadapter.addAll(sortedset);
+        //Solution Method 1:
+//        try {
+//            if (Arrays.asList(getResources().getAssets().list("")).contains("pathshalatest.ovpn")) {
+//                String path = "android.resource://"+requireActivity().getPackageName()+"/"+R.raw.pathshalatest;
+//                //Uri uri = Uri.fromFile(new File("//assets/pathshalatest.ovpn"));
+//                Uri uri = Uri.parse(path);
+//                startConfigImport(uri);
+//            } else {
+//                Toast.makeText(requireActivity(), "Not found and default VPN client", Toast.LENGTH_SHORT).show();
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
-        setListAdapter(mArrayadapter);
-        mArrayadapter.notifyDataSetChanged();
+
+        //Aariyan new code:
+        //Method 2
+        try {
+            // .ovpn file
+            InputStream conf = requireActivity().getAssets().open("pathshalatest.ovpn");
+            InputStreamReader isr = new InputStreamReader(conf);
+            BufferedReader br = new BufferedReader(isr);
+            String inlineConfig = "";
+            String line;
+
+            while (true) {
+                line = br.readLine();
+                if (line == null) break;
+                inlineConfig += line + "\n";
+            }
+
+            br.readLine();
+            //OpenVpnApi.startVpn(getContext(), config, "Pathshala Test", "vpn", "vpn");
+            ConfigParser cp = new ConfigParser();
+            try {
+                cp.parseConfig(new StringReader(inlineConfig));
+                VpnProfile d = cp.convertProfile();// Analysis.ovpn
+                //ProfileManager.setTemporaryProfile(requireActivity(), d);
+                d.mName = "Pathshala Test";
+                ProfileManager.saveProfile(requireActivity(), d);
+                addProfile(d);
+
+                boolean sortByLRU = Preferences.getDefaultSharedPreferences(requireActivity()).getBoolean(PREF_SORT_BY_LRU, false);
+                Collection<VpnProfile> allvpns;
+                //allvpn = defaultVPN;
+                allvpns = getPM().getProfiles();
+
+                TreeSet<VpnProfile> sortedset;
+                if (sortByLRU)
+                    sortedset = new TreeSet<>(new VpnProfileLRUComparator());
+                else
+                    sortedset = new TreeSet<>(new VpnProfileNameComparator());
+
+                sortedset.addAll(allvpns);
+                mArrayadapter.clear();
+                mArrayadapter.addAll(sortedset);
+
+                setListAdapter(mArrayadapter);
+                mArrayadapter.notifyDataSetChanged();
+
+
+            } catch (IOException | ConfigParser.ConfigParseError e) {
+                throw new RemoteException(e.getMessage());
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // Aariyan Code end
+
+//        boolean sortByLRU = Preferences.getDefaultSharedPreferences(requireActivity()).getBoolean(PREF_SORT_BY_LRU, false);
+//        //Collection<VpnProfile> allvpn;
+//        allvpn.add(defaultVPN);
+//        allvpn= getPM().getProfiles();
+//
+//        TreeSet<VpnProfile> sortedset;
+//        if (sortByLRU)
+//            sortedset = new TreeSet<>(new VpnProfileLRUComparator());
+//        else
+//            sortedset = new TreeSet<>(new VpnProfileNameComparator());
+//
+//        sortedset.addAll(allvpn);
+//        mArrayadapter.clear();
+//        mArrayadapter.addAll(sortedset);
+//
+//        setListAdapter(mArrayadapter);
+//        mArrayadapter.notifyDataSetChanged();
     }
 
     @Override
