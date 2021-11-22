@@ -48,12 +48,12 @@
             tools:text="TextView" />
 
     <Button
-            android:id="@+id/getMyIP"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/startVPN"
-            android:layout_alignParentLeft="true"
-            android:text="@string/show_my_ip" />
+        android:id="@+id/getMyIP"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/startVPN"
+        android:layout_alignParentLeft="true"
+        android:text="@string/show_my_ip" />
 
         <Button
             android:id="@+id/disconnect"

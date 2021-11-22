@@ -61,7 +61,6 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
         mStatus = (TextView) v.findViewById(R.id.status);
         mMyIp = (TextView) v.findViewById(R.id.MyIpText);
 
-
         return v;
 
     }
@@ -75,29 +74,25 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
     private static final int PROFILE_ADD_NEW_EDIT = 9;
 
 
-    protected IOpenVPNAPIService mService=null;
+    protected IOpenVPNAPIService mService = null;
     private Handler mHandler;
 
 
-
-
-    private void startEmbeddedProfile(boolean addNew, boolean editable, boolean startAfterAdd)
-    {
+    private void startEmbeddedProfile(boolean addNew, boolean editable, boolean startAfterAdd) {
         try {
             InputStream conf;
             /* Try opening test.local.conf first */
             try {
                 conf = getActivity().getAssets().open("test.local.conf");
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 conf = getActivity().getAssets().open("test.conf");
             }
             BufferedReader br = new BufferedReader(new InputStreamReader(conf));
             StringBuilder config = new StringBuilder();
             String line;
-            while(true) {
+            while (true) {
                 line = br.readLine();
-                if(line == null)
+                if (line == null)
                     break;
                 config.append(line).append("\n");
             }
@@ -124,6 +119,15 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
         bindService();
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+//        try {
+//            prepareStartProfile(START_PROFILE_BYUUID);
+//        } catch (RemoteException e) {
+//            e.printStackTrace();
+//        }
+    }
 
     private IOpenVPNStatusCallback mCallback = new IOpenVPNStatusCallback.Stub() {
         /**
@@ -162,10 +166,10 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
             try {
                 // Request permission to use the API
                 Intent i = mService.prepare(getActivity().getPackageName());
-                if (i!=null) {
+                if (i != null) {
                     startActivityForResult(i, ICS_OPENVPN_PERMISSION);
                 } else {
-                    onActivityResult(ICS_OPENVPN_PERMISSION, Activity.RESULT_OK,null);
+                    onActivityResult(ICS_OPENVPN_PERMISSION, Activity.RESULT_OK, null);
                 }
 
             } catch (RemoteException e) {
@@ -181,39 +185,44 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
 
         }
     };
-    private String mStartUUID=null;
+    private String mStartUUID = null;
 
     private void bindService() {
-
         Intent icsopenvpnService = new Intent(IOpenVPNAPIService.class.getName());
         icsopenvpnService.setPackage("de.blinkt.openvpn");
 
         getActivity().bindService(icsopenvpnService, mConnection, Context.BIND_AUTO_CREATE);
+
     }
 
     protected void listVPNs() {
 
         try {
             List<APIVpnProfile> list = mService.getProfiles();
-            String all="List:";
-            for(APIVpnProfile vp:list.subList(0, Math.min(5, list.size()))) {
+            String all = "List:";
+            for (APIVpnProfile vp : list.subList(0, Math.min(5, list.size()))) {
                 all = all + vp.mName + ":" + vp.mUUID + "\n";
             }
 
             if (list.size() > 5)
-                all +="\n And some profiles....";
+                all += "\n And some profiles....";
 
-            if(list.size()> 0) {
-                Button b= mStartVpn;
+            if (list.size() > 0) {
+                Button b = mStartVpn;
                 b.setOnClickListener(this);
                 b.setVisibility(View.VISIBLE);
                 b.setText(list.get(0).mName);
                 mStartUUID = list.get(0).mUUID;
+
+                try {
+                    prepareStartProfile(START_PROFILE_BYUUID);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
             }
 
 
-
-           mHelloWorld.setText(all);
+            mHelloWorld.setText(all);
 
         } catch (RemoteException e) {
             // TODO Auto-generated catch block
@@ -258,7 +267,7 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
                     public void run() {
                         try {
                             String myip = getMyOwnIP();
-                            Message msg = Message.obtain(mHandler,MSG_UPDATE_MYIP,myip);
+                            Message msg = Message.obtain(mHandler, MSG_UPDATE_MYIP, myip);
                             msg.sendToTarget();
                         } catch (Exception e) {
                             // TODO Auto-generated catch block
@@ -295,7 +304,7 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
 
     private void prepareStartProfile(int requestCode) throws RemoteException {
         Intent requestpermission = mService.prepareVPNService();
-        if(requestpermission == null) {
+        if (requestpermission == null) {
             onActivityResult(requestCode, Activity.RESULT_OK, null);
         } else {
             // Have to call an external Activity since services cannot used onActivityResult
@@ -305,9 +314,9 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == Activity.RESULT_OK) {
-            if(requestCode==START_PROFILE_EMBEDDED)
+            if (requestCode == START_PROFILE_EMBEDDED)
                 startEmbeddedProfile(false, false, false);
-            if(requestCode==START_PROFILE_BYUUID)
+            if (requestCode == START_PROFILE_BYUUID)
                 try {
                     mService.startProfile(mStartUUID);
                 } catch (RemoteException e) {
@@ -325,16 +334,16 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
             CheckBox startCB = getView().findViewById(R.id.startafterAdding);
             if (requestCode == PROFILE_ADD_NEW) {
                 startEmbeddedProfile(true, false, startCB.isSelected());
-            }
-            else if (requestCode == PROFILE_ADD_NEW_EDIT) {
+            } else if (requestCode == PROFILE_ADD_NEW_EDIT) {
                 startEmbeddedProfile(true, true, startCB.isSelected());
             }
         }
-    };
+    }
+
+    ;
 
     String getMyOwnIP() throws UnknownHostException, IOException, RemoteException,
-            IllegalArgumentException, IllegalAccessException, InvocationTargetException, NoSuchMethodException
-    {
+            IllegalArgumentException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
         StringBuilder resp = new StringBuilder();
 
         URL url = new URL("https://icanhazip.com");
@@ -343,7 +352,7 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
             BufferedReader in = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
             while (true) {
                 String line = in.readLine();
-                if( line == null)
+                if (line == null)
                     return resp.toString();
                 resp.append(line);
             }
@@ -353,10 +362,9 @@ public class MainFragment extends Fragment implements View.OnClickListener, Hand
     }
 
 
-
     @Override
     public boolean handleMessage(Message msg) {
-        if(msg.what == MSG_UPDATE_STATE) {
+        if (msg.what == MSG_UPDATE_STATE) {
             mStatus.setText((CharSequence) msg.obj);
         } else if (msg.what == MSG_UPDATE_MYIP) {
 
